@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Models;
+using TodoAPI.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,6 +24,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMyLogging();
 
 app.UseAuthorization();
 
