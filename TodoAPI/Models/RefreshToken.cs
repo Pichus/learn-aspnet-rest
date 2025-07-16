@@ -1,11 +1,11 @@
 namespace TodoApi.Models;
 
-public class TodoItem
+public class RefreshToken
 {
     public int Id { get; set; }
-    public string? Name { get; set; }
-    public bool IsComplete { get; set; }
-
+    public string Token { get; set; }
+    public DateTime ExpirationDate { get; set; }
     public int UserId { get; set; }
+
     public User User { get; set; }
 }
