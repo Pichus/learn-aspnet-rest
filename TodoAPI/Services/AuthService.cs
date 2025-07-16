@@ -11,8 +11,7 @@ using TodoApi.Models;
 
 namespace TodoAPI.Services;
 
-public class AuthService
-// public class AuthService : IAuthService
+public class AuthService : IAuthService
 {
     private readonly IConfiguration _configuration;
     private readonly TodoContext _context;
@@ -23,7 +22,7 @@ public class AuthService
         _context = context;
     }
 
-    public async Task<User> RegisterAsync(UserDto userDto)
+    public async Task<GetUserAfterRegistrationDto> RegisterAsync(UserDto userDto)
     {
         if (await _context.Users.AnyAsync(user => user.Username == userDto.Username))
             throw new UsernameTakenException($"username \"{userDto.Username}\" is taken");
@@ -40,43 +39,64 @@ public class AuthService
 
         await _context.SaveChangesAsync();
 
-        return user;
+        var response = new GetUserAfterRegistrationDto
+        {
+            Id = user.Id,
+            Username = user.Username
+        };
+
+        return response;
     }
 
-    // public async Task<TokenResponseDto> LoginAsync(UserDto userDto)
-    // {
-    //     var user = await _context.Users.FirstOrDefaultAsync(user => user.Username == userDto.Username);
-    //
-    //     if (user is null) throw new WrongUsernameOrPassword($"user with username \"{userDto.Username}\" not found");
-    //
-    //     if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, userDto.Password) ==
-    //         PasswordVerificationResult.Failed)
-    //         throw new WrongUsernameOrPassword("Wrong password");
-    //
-    //     return await CreateTokenResponse(user);
-    // }
+    public async Task<TokenResponseDto> LoginAsync(UserDto userDto)
+    {
+        var user = await _context.Users.FirstOrDefaultAsync(user => user.Username == userDto.Username);
 
-    // public async Task<TokenResponseDto?> RefreshTokensAsync(RefreshTokenRequestDto refreshTokenRequestDto)
-    // {
-    //     var user = await ValidateRefreshTokenAsync(refreshTokenRequestDto.UserId, refreshTokenRequestDto.RefreshToken);
-    //
-    //     if (user is null)
-    //     {
-    //         Console.WriteLine("user null wtf");
-    //         return null;
-    //     }
-    //
-    //     return await CreateTokenResponse(user);
-    // }
+        if (user is null) throw new WrongUsernameOrPassword($"user with username \"{userDto.Username}\" not found");
 
-    // private async Task<TokenResponseDto> CreateTokenResponse(User user)
-    // {
-    //     return new TokenResponseDto
-    //     {
-    //         AccessToken = CreateToken(user),
-    //         RefreshToken = await GenerateAndSaveRefreshTokenAsync(user)
-    //     };
-    // }
+        if (new PasswordHasher<User>().VerifyHashedPassword(user, user.PasswordHash, userDto.Password) ==
+            PasswordVerificationResult.Failed)
+            throw new WrongUsernameOrPassword("Wrong password");
+
+        return await CreateTokenResponse(user);
+    }
+
+    public async Task<TokenResponseDto?> RefreshTokensAsync(string refreshTokenString)
+    {
+        var refreshToken = await GetRefreshTokenByTokenStringAsync(refreshTokenString);
+
+        if (refreshToken is null)
+        {
+            return null;
+        }
+
+        var refreshTokenValid = ValidateRefreshToken(refreshToken);
+
+        if (!refreshTokenValid)
+        {
+            return null;
+        }
+
+        return await CreateTokenResponse(refreshToken.User);
+    }
+
+    private async Task<RefreshToken?> GetRefreshTokenByTokenStringAsync(string refreshTokenString)
+    {
+        var refreshToken = await _context.RefreshTokens
+            .Include(token => token.User)
+            .FirstOrDefaultAsync(token => token.Token == refreshTokenString);
+
+        return refreshToken;
+    }
+
+    private async Task<TokenResponseDto> CreateTokenResponse(User user)
+    {
+        return new TokenResponseDto
+        {
+            AccessToken = CreateAccessToken(user),
+            RefreshToken = await GenerateAndSaveRefreshTokenAsync(user)
+        };
+    }
 
     private string GenerateRefreshToken()
     {
@@ -88,36 +108,43 @@ public class AuthService
 
     private async Task<string> GenerateAndSaveRefreshTokenAsync(User user)
     {
-        var refreshToken = GenerateRefreshToken();
-        user.RefreshToken = refreshToken;
-        user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-        await _context.SaveChangesAsync();
-        return refreshToken;
-    }
+        var refreshToken = await _context.RefreshTokens
+            .FirstOrDefaultAsync(token => token.UserId == user.Id);
 
-    private async Task<User?> ValidateRefreshTokenAsync(int userId, string refreshToken)
-    {
-        var user = await _context.Users.FindAsync(userId);
-        Console.WriteLine(userId);
-    
-        if (user is null)
+        var newTokenString = GenerateRefreshToken();
+        var expiration = DateTime.UtcNow.AddDays(7);
+
+        if (refreshToken is not null)
         {
-            Console.WriteLine("user not found");
-            return null;
+            refreshToken.Token = newTokenString;
+            refreshToken.ExpirationDate = expiration;
         }
-    
-        var tokenNotExpired = user.RefreshTokenExpiryTime > DateTime.UtcNow;
-        Console.WriteLine($"token exprired {tokenNotExpired}");
-        var tokenMatches = refreshToken == user.RefreshToken;
-        Console.WriteLine($"token matches {tokenMatches}");
-        var isRefreshTokenValid = tokenNotExpired && tokenMatches;
+        else
+        {
+            refreshToken = new RefreshToken
+            {
+                Token = newTokenString,
+                ExpirationDate = expiration,
+                UserId = user.Id
+            };
+            
+            _context.RefreshTokens.Add(refreshToken);
+        }
         
-        if (!isRefreshTokenValid) return null;
-    
-        return user;
+
+        await _context.SaveChangesAsync();
+
+        return refreshToken.Token;
     }
 
-    private string CreateToken(User user)
+    private bool ValidateRefreshToken(RefreshToken refreshToken)
+    {
+        var tokenExpired = refreshToken.ExpirationDate > DateTime.UtcNow;
+
+        return tokenExpired;
+    }
+
+    private string CreateAccessToken(User user)
     {
         var claims = new List<Claim>
         {
@@ -141,8 +168,3 @@ public class AuthService
         return new JwtSecurityTokenHandler().WriteToken(tokenDescriptor);
     }
 }
-
-// {
-// "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoidGVzdHVzZXIiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjkiLCJleHAiOjE3NTI1MDE1MzcsImlzcyI6InBpY2h1c1RoZUlzc3VlciIsImF1ZCI6InBpY2h1c1RoZUF1ZGllbmNlIn0.fkE2zuAjm7YNq9vpoABgdsNKHyr09AzFulTuM0q15zKCo3lmRYC_1pP5LzeaNF_1ZIENQq0crgO8F2rlrCeM3g",
-// "refreshToken": "RLpkter7zapc49keVNRdpGxjShLXs88G/uw6W8TDiCE="
-// }
