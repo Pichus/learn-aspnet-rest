@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using TodoAPI.Dtos;
 using TodoAPI.Exceptions;
-using TodoApi.Models;
 using TodoAPI.Services;
 
 namespace TodoAPI.Controllers;

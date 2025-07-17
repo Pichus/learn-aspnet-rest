@@ -65,7 +65,7 @@ public class AuthService : IAuthService
     {
         var refreshToken = await GetRefreshTokenByTokenStringAsync(refreshTokenString);
 
-        if (refreshToken is null)
+        if (refreshToken is null || refreshToken.IsRevoked)
         {
             return null;
         }
