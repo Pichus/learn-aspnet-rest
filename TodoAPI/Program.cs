@@ -67,8 +67,3 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
-
-// {
-//     "accessToken": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiMTIzdXNlciIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiMTAiLCJleHAiOjE3NTI2OTE5ODMsImlzcyI6InBpY2h1c1RoZUlzc3VlciIsImF1ZCI6InBpY2h1c1RoZUF1ZGllbmNlIn0.xICEouU_oOnxxW6XUfA9Y_INgpDAlP72VUMZdz-a1j5MXI6iICvRieFhbwphyPe-TtGL6a7uLgAJF7baLZdzow",
-//     "refreshToken": "NadXdYMzP+Vlw9jc/Qa5qDaRM0dkNtSgK7Nizn08pP4="
-// }

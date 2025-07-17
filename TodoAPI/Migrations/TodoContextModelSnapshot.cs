@@ -33,6 +33,9 @@ namespace TodoAPI.Migrations
                     b.Property<DateTime>("ExpirationDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsRevoked")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("text");

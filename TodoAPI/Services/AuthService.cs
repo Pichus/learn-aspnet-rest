@@ -77,7 +77,15 @@ public class AuthService : IAuthService
             return null;
         }
 
+        await RevokeRefreshTokenAsync(refreshToken);
+
         return await CreateTokenResponse(refreshToken.User);
+    }
+
+    private async Task RevokeRefreshTokenAsync(RefreshToken refreshToken)
+    {
+        refreshToken.IsRevoked = true;
+        await _context.SaveChangesAsync();
     }
 
     private async Task<RefreshToken?> GetRefreshTokenByTokenStringAsync(string refreshTokenString)
@@ -108,29 +116,18 @@ public class AuthService : IAuthService
 
     private async Task<string> GenerateAndSaveRefreshTokenAsync(User user)
     {
-        var refreshToken = await _context.RefreshTokens
-            .FirstOrDefaultAsync(token => token.UserId == user.Id);
-
-        var newTokenString = GenerateRefreshToken();
+        var tokenString = GenerateRefreshToken();
         var expiration = DateTime.UtcNow.AddDays(7);
 
-        if (refreshToken is not null)
+        var refreshToken = new RefreshToken
         {
-            refreshToken.Token = newTokenString;
-            refreshToken.ExpirationDate = expiration;
-        }
-        else
-        {
-            refreshToken = new RefreshToken
-            {
-                Token = newTokenString,
-                ExpirationDate = expiration,
-                UserId = user.Id
-            };
-            
-            _context.RefreshTokens.Add(refreshToken);
-        }
+            Token = tokenString,
+            ExpirationDate = expiration,
+            IsRevoked = false,
+            UserId = user.Id,
+        };
         
+        _context.RefreshTokens.Add(refreshToken);
 
         await _context.SaveChangesAsync();
 
