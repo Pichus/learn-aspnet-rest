@@ -157,8 +157,8 @@ public class AuthService : IAuthService
             _configuration["JwtSettings:Issuer"],
             _configuration["JwtSettings:Audience"],
             claims,
-            expires: DateTime.UtcNow.AddSeconds(30), // for testing purposes
-            // expires: DateTime.UtcNow.AddHours(1),
+            // expires: DateTime.UtcNow.AddSeconds(30), // for testing purposes
+            expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: credentials
         );
 

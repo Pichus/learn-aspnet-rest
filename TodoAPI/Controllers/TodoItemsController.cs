@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TodoAPI.Dtos;
 using TodoApi.Models;
+using TodoAPI.Repositories;
 
 namespace TodoAPI.Controllers;
 
@@ -12,11 +13,11 @@ namespace TodoAPI.Controllers;
 [ApiController]
 public class TodoItemsController : ControllerBase
 {
-    private readonly TodoContext _context;
+    private readonly ITodoItemRepository _todoItemRepository;
 
-    public TodoItemsController(TodoContext context)
+    public TodoItemsController(ITodoItemRepository todoItemRepository)
     {
-        _context = context;
+        _todoItemRepository = todoItemRepository;
     }
 
     [HttpGet]
@@ -24,18 +25,15 @@ public class TodoItemsController : ControllerBase
     {
         var userId = GetUserIdFromJwt();
 
-        var todoItems = await _context.TodoItems.Where(item => item.UserId == userId).ToListAsync();
+        var todoItems = await _todoItemRepository.GetAllAsync(userId);
 
-        var todoItemDtos = new List<GetTodoItemDto>();
-
-        foreach (var todoItem in todoItems)
-            todoItemDtos.Add(new GetTodoItemDto
-            {
-                Id = todoItem.Id,
-                IsComplete = todoItem.IsComplete,
-                Name = todoItem.Name,
-                UserId = todoItem.UserId
-            });
+        var todoItemDtos = todoItems.Select(todoItem => new GetTodoItemDto
+        {
+            Id = todoItem.Id,
+            IsComplete = todoItem.IsComplete,
+            Name = todoItem.Name,
+            UserId = todoItem.UserId
+        }).ToList();
 
         return Ok(todoItemDtos);
     }
@@ -46,8 +44,8 @@ public class TodoItemsController : ControllerBase
     {
         var userId = GetUserIdFromJwt();
 
-        var todoItem = await _context.TodoItems.FirstOrDefaultAsync(item => item.UserId == userId && item.Id == id);
-
+        var todoItem = await _todoItemRepository.GetByIdAsync(id, userId);
+        
         if (todoItem == null) return NotFound();
 
         var todoItemDto = new GetTodoItemDto
@@ -66,16 +64,24 @@ public class TodoItemsController : ControllerBase
     public async Task<IActionResult> PutTodoItem([FromRoute] int id, [FromBody] CreateTodoItemDto todoItemDto)
     {
         var userId = GetUserIdFromJwt();
+
+        var todoItem = new TodoItem
+        {
+            Id = id,
+            Name = todoItemDto.Name,
+            IsComplete = todoItemDto.IsComplete,
+            UserId = userId,
+        };
+
+        bool result = await _todoItemRepository.Update(todoItem);
+
+        if (!result)
+        {
+            return NotFound();
+        }
+
+        await _todoItemRepository.SaveChangesAsync();
         
-        var todoItem = await _context.TodoItems.FirstOrDefaultAsync(item => item.UserId == userId && item.Id == id);
-
-        if (todoItem is null) return NotFound();
-        
-        todoItem.Name = todoItemDto.Name;
-        todoItem.IsComplete = todoItemDto.IsComplete;
-
-        await _context.SaveChangesAsync();
-
         return NoContent();
     }
 
@@ -91,8 +97,8 @@ public class TodoItemsController : ControllerBase
             UserId = userId
         };
 
-        _context.TodoItems.Add(todoItem);
-        await _context.SaveChangesAsync();
+        _todoItemRepository.Add(todoItem);
+        await _todoItemRepository.SaveChangesAsync();
 
         var response = new GetTodoItemDto
         {
@@ -109,19 +115,22 @@ public class TodoItemsController : ControllerBase
     public async Task<IActionResult> DeleteTodoItem(int id)
     {
         var userId = GetUserIdFromJwt();
-        var todoItem = await _context.TodoItems.FirstOrDefaultAsync(item => item.UserId == userId && item.Id == id);
-        
-        if (todoItem == null) return NotFound();
-        
-        _context.TodoItems.Remove(todoItem);
-        await _context.SaveChangesAsync();
+
+        bool result = await _todoItemRepository.Remove(id, userId);
+
+        if (!result)
+        {
+            return NotFound();
+        }
+
+        await _todoItemRepository.SaveChangesAsync();
 
         return NoContent();
     }
 
-    private bool TodoItemExists(int id)
+    private async Task<bool> TodoItemExists(int id)
     {
-        return _context.TodoItems.Any(e => e.Id == id);
+        return await _todoItemRepository.AnyAsync(e => e.Id == id);
     }
 
     private int GetUserIdFromJwt()
@@ -129,5 +138,3 @@ public class TodoItemsController : ControllerBase
         return int.Parse(User.Claims.FirstOrDefault(claim => claim.Type == ClaimTypes.NameIdentifier)!.Value);
     }
 }
-
-// eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1lIjoiaWxsaWEiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjUiLCJleHAiOjE3NTI0MTg5MTQsImlzcyI6InBpY2h1c1RoZUlzc3VlciIsImF1ZCI6InBpY2h1c1RoZUF1ZGllbmNlIn0.JH3QKLbXKKKckbwAPzgB-9Ntl7XXe_0dB2ECrHB_Z7IKQmQkj7sTwjEWndZikJPF3lzp1wLtvBWUAwGHjePzVA

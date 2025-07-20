@@ -5,10 +5,17 @@ using Microsoft.IdentityModel.Tokens;
 using NSwag;
 using NSwag.Generation.Processors.Security;
 using TodoApi.Models;
+using TodoAPI.Repositories;
 using TodoAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var config = builder.Configuration;
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisDatabase");
+    options.InstanceName = "TodoInstance";
+});
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(jwtOptions =>
@@ -46,6 +53,14 @@ builder.Services.AddDbContext<TodoContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("TodoDatabase")));
 
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICacheService, CacheService>();
+builder.Services.AddScoped<ITodoItemRepository>(provider =>
+{
+    var context = provider.GetService<TodoContext>();
+    var cache = provider.GetService<ICacheService>();
+
+    return new CacheTodoItemRepository(new TodoItemRepository(context), cache);
+});
 
 var app = builder.Build();
 
@@ -58,7 +73,6 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// app.UseMyLogging();
 
 app.UseAuthentication();
 
