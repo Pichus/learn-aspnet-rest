@@ -65,17 +65,11 @@ public class AuthService : IAuthService
     {
         var refreshToken = await GetRefreshTokenByTokenStringAsync(refreshTokenString);
 
-        if (refreshToken is null || refreshToken.IsRevoked)
-        {
-            return null;
-        }
+        if (refreshToken is null || refreshToken.IsRevoked) return null;
 
         var refreshTokenValid = ValidateRefreshToken(refreshToken);
 
-        if (!refreshTokenValid)
-        {
-            return null;
-        }
+        if (!refreshTokenValid) return null;
 
         await RevokeRefreshTokenAsync(refreshToken);
 
@@ -124,9 +118,9 @@ public class AuthService : IAuthService
             Token = tokenString,
             ExpirationDate = expiration,
             IsRevoked = false,
-            UserId = user.Id,
+            UserId = user.Id
         };
-        
+
         _context.RefreshTokens.Add(refreshToken);
 
         await _context.SaveChangesAsync();
@@ -157,7 +151,6 @@ public class AuthService : IAuthService
             _configuration["JwtSettings:Issuer"],
             _configuration["JwtSettings:Audience"],
             claims,
-            // expires: DateTime.UtcNow.AddSeconds(30), // for testing purposes
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: credentials
         );
