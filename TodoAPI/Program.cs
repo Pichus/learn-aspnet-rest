@@ -13,7 +13,7 @@ var config = builder.Configuration;
 
 builder.Services.AddStackExchangeRedisCache(options =>
 {
-    options.Configuration = builder.Configuration.GetConnectionString("RedisDatabase");
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
     options.InstanceName = "TodoInstance";
 });
 
@@ -22,7 +22,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     {
         jwtOptions.TokenValidationParameters = new TokenValidationParameters
         {
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["JwtSettings:Key"]!)),
             ValidateAudience = true,
             ValidateIssuer = true,
             ValidateIssuerSigningKey = true,
@@ -50,7 +50,7 @@ builder.Services.AddOpenApiDocument(document =>
 });
 
 builder.Services.AddDbContext<TodoContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("TodoDatabase")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Postgres")));
 
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICacheService, CacheService>();
