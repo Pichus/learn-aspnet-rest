@@ -10,8 +10,6 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     private readonly PostgreSqlContainer _postgresContainer;
     private readonly RedisContainer _redisContainer;
 
-    public HttpClient HttpClient { get; set; } = null!;
-
     public CustomWebApplicationFactory()
     {
         _postgresContainer = new PostgreSqlBuilder()
@@ -21,12 +19,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             .WithUsername("admin")
             .WithPassword("admin")
             .Build();
-        
+
         _redisContainer = new RedisBuilder()
             .WithImage("redis:8.0.3-alpine")
             .WithPortBinding(6379, true)
             .Build();
     }
+
+    public HttpClient HttpClient { get; set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -44,6 +44,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        Environment.SetEnvironmentVariable("ConnectionStrings:TodoDatabase", _postgresContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable("ConnectionStrings:Postgres", _postgresContainer.GetConnectionString());
+        Environment.SetEnvironmentVariable("ConnectionStrings:Redis", _redisContainer.GetConnectionString());
     }
 }
