@@ -5,7 +5,6 @@ using TodoAPI.Services;
 
 namespace TodoAPI.Controllers;
 
-
 [Route("api/[controller]")]
 [ApiController]
 public class AuthController : ControllerBase
@@ -50,16 +49,13 @@ public class AuthController : ControllerBase
 
         return Ok(response);
     }
-    
+
     [HttpPost("refresh-token")]
     public async Task<ActionResult<TokenResponseDto>> RefreshToken(RefreshTokenRequestDto refreshTokenRequestDto)
     {
         var result = await _authService.RefreshTokensAsync(refreshTokenRequestDto.RefreshToken);
 
-        if (result is null)
-        {
-            return Unauthorized("invalid refresh token");
-        }
+        if (result is null) return Unauthorized("invalid refresh token");
 
         return Ok(result);
     }
