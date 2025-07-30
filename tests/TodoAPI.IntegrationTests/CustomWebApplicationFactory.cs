@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
 using Testcontainers.Redis;
+using TodoApi.Models;
 
 namespace TodoAPI.IntegrationTests;
 
@@ -33,6 +36,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         await _postgresContainer.StartAsync();
         await _redisContainer.StartAsync();
 
+        await ResetDatabaseAsync();
+        await RunMigrationsAsync();
+
         HttpClient = CreateClient();
     }
 
@@ -46,5 +52,29 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
     {
         builder.UseSetting("ConnectionStrings:Postgres", _postgresContainer.GetConnectionString());
         builder.UseSetting("ConnectionStrings:Redis", _redisContainer.GetConnectionString());
+    }
+
+
+    private async Task ResetDatabaseAsync()
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoContext>();
+
+        await context.Database.EnsureDeletedAsync();
+    }
+
+    private async Task RunMigrationsAsync()
+    {
+        using var scope = Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<TodoContext>();
+
+        try
+        {
+            await context.Database.MigrateAsync();
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Database migration failed during test setup", ex);
+        }
     }
 }
